@@ -500,6 +500,11 @@ int main(int argc, char **argv) {
         }
         fclose(writer);
 
+        freeingGPUMemory(d_ALGEBRAIC, d_CONSTANTS, d_RATES, d_STATES,
+                         d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50);
+
+        free(h_states); free(h_cipa_result); 
+
         toc();
     }
     return 0;
