@@ -27,7 +27,7 @@ void param_t::init()
   snprintf(hill_file, sizeof(hill_file), "%s", "./drugs/bepridil/IC50_samples.csv");
   snprintf(cvar_file, sizeof(cvar_file), "%s", "./drugs/10000_pop.csv");
   snprintf(drug_name, sizeof(drug_name), "%s", "bepridil");
-  snprintf(drug_name, sizeof(herg_dir), "%s", "herg");
+  snprintf(herg_dir, sizeof(herg_dir), "%s", "herg");
   // snprintf(concs, sizeof(concs), "%s", "99.0");
 }
 
