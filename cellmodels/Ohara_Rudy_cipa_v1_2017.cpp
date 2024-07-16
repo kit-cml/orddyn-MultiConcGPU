@@ -1094,6 +1094,53 @@ RATES[(rates_size * offset) + cajsr] =  ALGEBRAIC[(algebraic_size * offset) + Bc
 }
 
 
+__device__ double ___gaussElimination(double *A, double *b, double *x, int N) {
+        // Using A as a flat array to represent an N x N matrix
+    for (int i = 0; i < N; i++) {
+        // Search for maximum in this column
+        double maxEl = fabs(A[i*N + i]);
+        int maxRow = i;
+        for (int k = i + 1; k < N; k++) {
+            if (fabs(A[k*N + i]) > maxEl) {
+                maxEl = fabs(A[k*N + i]);
+                maxRow = k;
+            }
+        }
+
+        // Swap maximum row with current row (column by column)
+        for (int k = i; k < N; k++) {
+            double tmp = A[maxRow*N + k];
+            A[maxRow*N + k] = A[i*N + k];
+            A[i*N + k] = tmp;
+        }
+        double tmp = b[maxRow];
+        b[maxRow] = b[i];
+        b[i] = tmp;
+
+        // Make all rows below this one 0 in current column
+        for (int k = i + 1; k < N; k++) {
+            double c = -A[k*N + i] / A[i*N + i];
+            for (int j = i; j < N; j++) {
+                if (i == j) {
+                    A[k*N + j] = 0;
+                } else {
+                    A[k*N + j] += c * A[i*N + j];
+                }
+            }
+            b[k] += c * b[i];
+        }
+    }
+
+    // Solve equation Ax=b for an upper triangular matrix A
+    for (int i = N - 1; i >= 0; i--) {
+        x[i] = b[i] / A[i*N + i];
+        for (int k = i - 1; k >= 0; k--) {
+            b[k] -= A[k*N + i] * x[i];
+        }
+    }
+}
+
+
 __device__ void solveAnalytical(double *CONSTANTS, double *STATES, double *ALGEBRAIC, double *RATES, double dt, int offset)
 {
 short algebraic_size = 200;
@@ -1253,51 +1300,6 @@ short rates_size = 49;
 //}
 }
 
-__device__ double ___gaussElimination(double *A, double *b, double *x, int N) {
-        // Using A as a flat array to represent an N x N matrix
-    for (int i = 0; i < N; i++) {
-        // Search for maximum in this column
-        double maxEl = fabs(A[i*N + i]);
-        int maxRow = i;
-        for (int k = i + 1; k < N; k++) {
-            if (fabs(A[k*N + i]) > maxEl) {
-                maxEl = fabs(A[k*N + i]);
-                maxRow = k;
-            }
-        }
-
-        // Swap maximum row with current row (column by column)
-        for (int k = i; k < N; k++) {
-            double tmp = A[maxRow*N + k];
-            A[maxRow*N + k] = A[i*N + k];
-            A[i*N + k] = tmp;
-        }
-        double tmp = b[maxRow];
-        b[maxRow] = b[i];
-        b[i] = tmp;
-
-        // Make all rows below this one 0 in current column
-        for (int k = i + 1; k < N; k++) {
-            double c = -A[k*N + i] / A[i*N + i];
-            for (int j = i; j < N; j++) {
-                if (i == j) {
-                    A[k*N + j] = 0;
-                } else {
-                    A[k*N + j] += c * A[i*N + j];
-                }
-            }
-            b[k] += c * b[i];
-        }
-    }
-
-    // Solve equation Ax=b for an upper triangular matrix A
-    for (int i = N - 1; i >= 0; i--) {
-        x[i] = b[i] / A[i*N + i];
-        for (int k = i - 1; k >= 0; k--) {
-            b[k] -= A[k*N + i] * x[i];
-        }
-    }
-}
 
 // void ohara_rudy_cipa_v1_2017::solveRK4(double TIME, double dt)
 // {

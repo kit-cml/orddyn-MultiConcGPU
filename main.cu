@@ -314,18 +314,21 @@ int check_IC50_content(const drug_t *ic50, const param_t *p_param) {
     }
 }
 
-int get_herg_data_from_file(const char* dir_name, char* drugname, double *herg)
+int get_herg_data_from_file(const char* dir_name, char **drugname, double *herg)
 {
   FILE *fp_herg;
   char *token;
   char full_herg_file_name[150];
   char buffer_herg[255];
   unsigned int idx;
+  int drugsize = 0;
 
   strcpy(full_herg_file_name, dir_name);
   strcat(full_herg_file_name,"/");
-  strcat(drugname,".csv");
-  strcat(full_herg_file_name,drugname);
+//   strcat(drugname,".csv");
+//   strcat(full_herg_file_name,drugname);
+  printf("%s\n", full_herg_file_name); // testingAuto
+  addDrugData(&drugname, drugsize, full_herg_file_name);
 
   printf("reading herg file: %s\n",full_herg_file_name);
 
@@ -394,7 +397,7 @@ int main(int argc, char **argv) {
         // TODO: NewFile 2. disable drug name for now since the file name is inside it
         // strcpy(p_param->drug_name, match[1].str().c_str());
         strcpy(p_param->hill_file, entry_str.c_str());
-        strcpy(p_param->hill_file, entry_str.c_str());
+        // strcpy(p_param->herg_dir, entry_str.c_str());
         // strcat(p_param->hill_file, ".csv");
         // strcat(p_param->hill_file, "/IC50_samples.csv");
 
@@ -407,6 +410,7 @@ int main(int argc, char **argv) {
         double *conc;
         double *herg;
         char **drug_name = nullptr;
+        // char *drug_name;
 
         ic50 = (double *)malloc(14 * sample_limit * sizeof(double));
         conc = (double *)malloc(sample_limit * sizeof(double));
@@ -489,7 +493,7 @@ int main(int argc, char **argv) {
         printf("Successfully reach here!!");
         // TODO: Automation 4. Free up GPU memory
         freeingGPUMemory(d_ALGEBRAIC, d_CONSTANTS, d_RATES, d_STATES,
-                         d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50);
+                         d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50, d_herg);
 
         FILE *writer;
         int check;

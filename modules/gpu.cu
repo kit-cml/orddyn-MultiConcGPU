@@ -1,5 +1,5 @@
 // #include "cellmodels/enums/enum_Ohara_Rudy_2011.hpp"
-#include "../cellmodels/Ohara_Rudy_2011.hpp"
+#include "../cellmodels/Ohara_Rudy_cipa_v1_2017.cpp"
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <cuda.h>
@@ -16,7 +16,7 @@ all modules here are optimised for GPU and slightly different than the original 
 differences are related to GPU offset calculations
 */
 
-__device__ void kernel_DoDrugSim(double *d_ic50, double *d_cvar, double d_conc, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, 
+__device__ void kernel_DoDrugSim(double *d_ic50, double *d_cvar, double d_conc, double *d_herg, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, 
                                         double *d_STATES_RESULT, 
                                       //  double *time, double *states, double *out_dt,  double *cai_result, 
                                       //  double *ina, double *inal,
