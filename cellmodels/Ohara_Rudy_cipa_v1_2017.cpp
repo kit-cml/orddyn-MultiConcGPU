@@ -3,7 +3,6 @@
    There are a total of 49 entries in each of the rate and state variable arrays.
    There are a total of 206 entries in the constant variable array.
  */
-
 #include "Ohara_Rudy_cipa_v1_2017.hpp"
 #include <cmath>
 #include <cstdlib>
