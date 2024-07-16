@@ -1094,7 +1094,7 @@ RATES[(rates_size * offset) + cajsr] =  ALGEBRAIC[(algebraic_size * offset) + Bc
 }
 
 
-__device__ double ___gaussElimination(double *A, double *b, double *x, int N) {
+__device__ void ___gaussElimination(double *A, double *b, double *x, int N) {
         // Using A as a flat array to represent an N x N matrix
     for (int i = 0; i < N; i++) {
         // Search for maximum in this column
