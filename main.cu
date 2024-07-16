@@ -110,7 +110,7 @@ void addDrugData(char*** arrayOfStrings, int& size, const char newString[]) {
     ++size;
 }
 
-void prepingGPUMemory(double *&d_ALGEBRAIC, int num_of_algebraic, int sample_size, double *&d_CONSTANTS, int num_of_constants, double *&d_RATES, int num_of_rates, double *&d_STATES, int num_of_states, param_t *&d_p_param, cipa_t *&temp_result, cipa_t *&cipa_result, double *&d_STATES_RESULT, double *&d_ic50, double *ic50, double *&d_conc, double *conc, param_t *p_param) {
+void prepingGPUMemory(double *&d_ALGEBRAIC, int num_of_algebraic, int sample_size, double *&d_CONSTANTS, int num_of_constants, double *&d_RATES, int num_of_rates, double *&d_STATES, int num_of_states, param_t *&d_p_param, cipa_t *&temp_result, cipa_t *&cipa_result, double *&d_STATES_RESULT, double *&d_ic50, double *ic50, double *&d_conc, double *conc, double *&d_herg, double *herg, param_t *p_param) {
     printf("preparing GPU memory space \n");
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
     cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double));
@@ -124,19 +124,21 @@ void prepingGPUMemory(double *&d_ALGEBRAIC, int num_of_algebraic, int sample_siz
     cudaMalloc(&cipa_result, sample_size * sizeof(cipa_t));
 
     cudaMalloc(&d_STATES_RESULT, num_of_states * sample_size * sizeof(double));
-
-    printf("Copying sample files to GPU memory space \n");
+    
     cudaMalloc(&d_ic50, sample_size * 14 * sizeof(double));
     // cudaMalloc(&d_cvar, sample_size * 18 * sizeof(double));
     cudaMalloc(&d_conc, sample_size * sizeof(double));
+    cudaMalloc(&d_herg, 6 * sizeof(double));
 
+    printf("Copying sample files to GPU memory space \n");
     cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
     // cudaMemcpy(d_cvar, cvar, sample_size * 18 * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_herg, herg, 6 * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_conc, conc, sample_size * sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(d_p_param, p_param, sizeof(param_t), cudaMemcpyHostToDevice);
 }
 
-void freeingGPUMemory(double *d_ALGEBRAIC, double *d_CONSTANTS, double *d_RATES, double *d_STATES, param_t *d_p_param, cipa_t *temp_result, cipa_t *cipa_result, double *d_STATES_RESULT, double *d_ic50) {
+void freeingGPUMemory(double *d_ALGEBRAIC, double *d_CONSTANTS, double *d_RATES, double *d_STATES, param_t *d_p_param, cipa_t *temp_result, cipa_t *cipa_result, double *d_STATES_RESULT, double *d_ic50, double *d_herg) {
     cudaFree(d_ALGEBRAIC);
     cudaFree(d_CONSTANTS);
     cudaFree(d_RATES);
@@ -146,6 +148,7 @@ void freeingGPUMemory(double *d_ALGEBRAIC, double *d_CONSTANTS, double *d_RATES,
     cudaFree(cipa_result);
     cudaFree(d_STATES_RESULT);
     cudaFree(d_ic50);
+    cudaFree(d_herg);
 }
 
 int gpu_check(unsigned int datasize) {
@@ -311,6 +314,44 @@ int check_IC50_content(const drug_t *ic50, const param_t *p_param) {
     }
 }
 
+int get_herg_data_from_file(const char* dir_name, char* drugname, double *herg)
+{
+  FILE *fp_herg;
+  char *token;
+  char full_herg_file_name[150];
+  char buffer_herg[255];
+  unsigned int idx;
+
+  strcpy(full_herg_file_name, dir_name);
+  strcat(full_herg_file_name,"/");
+  strcat(drugname,".csv");
+  strcat(full_herg_file_name,drugname);
+
+  printf("reading herg file: %s\n",full_herg_file_name);
+
+  if( (fp_herg = fopen(full_herg_file_name, "r")) == NULL){
+    printf("Cannot open file %s\n", full_herg_file_name);
+    return 0;
+  }
+  idx = 0;
+  int sample_size = 0;
+  fgets(buffer_herg, sizeof(buffer_herg), fp_herg); // skip header
+  while( fgets(buffer_herg, sizeof(buffer_herg), fp_herg) != NULL )
+    { // begin line reading
+      token = strtok( buffer_herg, "," );
+      while( token != NULL )
+      { // begin data tokenizing
+        herg[idx++] = strtod(token, NULL);
+        token = strtok(NULL, ",");
+      } // end data tokenizing
+      sample_size++;
+    } // end line reading
+
+  fclose(fp_herg);
+  printf("%lf, %lf, %lf, %lf, %lf, %lf\n",herg[0],herg[1],herg[2],herg[3],herg[4],herg[5]);
+  return sample_size;
+}
+
 int main(int argc, char **argv) {
     /* TODO: Creating new init state that takes new file format
      * 1. Set the mechanism to iterate over file inside folder
@@ -353,6 +394,7 @@ int main(int argc, char **argv) {
         // TODO: NewFile 2. disable drug name for now since the file name is inside it
         // strcpy(p_param->drug_name, match[1].str().c_str());
         strcpy(p_param->hill_file, entry_str.c_str());
+        strcpy(p_param->hill_file, entry_str.c_str());
         // strcat(p_param->hill_file, ".csv");
         // strcat(p_param->hill_file, "/IC50_samples.csv");
 
@@ -363,14 +405,17 @@ int main(int argc, char **argv) {
         double *ic50; // temporary
         double *cvar;
         double *conc;
+        double *herg;
         char **drug_name = nullptr;
 
         ic50 = (double *)malloc(14 * sample_limit * sizeof(double));
         conc = (double *)malloc(sample_limit * sizeof(double));
+        herg = (double *)malloc(6 * sizeof(double));
 
         double *d_ic50;
         double *d_conc;
         double *d_cvar;
+        double *d_herg;
         double *d_ALGEBRAIC;
         double *d_CONSTANTS;
         double *d_RATES;
@@ -386,6 +431,7 @@ int main(int argc, char **argv) {
 
         printf("%s\n", p_param->hill_file); // testingAuto
         int sample_size = get_IC50_data_from_file(p_param->hill_file, ic50, conc, drug_name);
+        int herg_size = get_herg_data_from_file(p_param->herg_dir, drug_name, herg);
         if (sample_size == 0)
             printf("Something problem with the IC50 file!\n");
         // else if(sample_size > 2000)
@@ -400,7 +446,7 @@ int main(int argc, char **argv) {
             printf("Reading: %d Conductance Variability samples\n", cvar_sample);
         }
 
-        prepingGPUMemory(d_ALGEBRAIC, num_of_algebraic, sample_size, d_CONSTANTS, num_of_constants, d_RATES, num_of_rates, d_STATES, num_of_states, d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50, ic50, d_conc, conc, p_param);
+        prepingGPUMemory(d_ALGEBRAIC, num_of_algebraic, sample_size, d_CONSTANTS, num_of_constants, d_RATES, num_of_rates, d_STATES, num_of_states, d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50, ic50, d_conc, conc, d_herg, herg, p_param);
 
         tic();
         printf("Timer started, doing simulation.... \n\n\nGPU Usage at this moment: \n");
@@ -417,7 +463,7 @@ int main(int argc, char **argv) {
         // initscr();
         // printf("[____________________________________________________________________________________________________]  0.00 %% \n");
 
-        kernel_DrugSimulation<<<block, thread>>>(d_ic50, d_cvar, d_conc, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC,
+        kernel_DrugSimulation<<<block, thread>>>(d_ic50, d_cvar, d_conc, d_herg, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC,
                                                  d_STATES_RESULT,
                                                  sample_size,
                                                  temp_result, cipa_result,
@@ -501,7 +547,7 @@ int main(int argc, char **argv) {
         fclose(writer);
 
         freeingGPUMemory(d_ALGEBRAIC, d_CONSTANTS, d_RATES, d_STATES,
-                         d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50);
+                         d_p_param, temp_result, cipa_result, d_STATES_RESULT, d_ic50, d_herg);
 
         free(h_states); free(h_cipa_result); 
 

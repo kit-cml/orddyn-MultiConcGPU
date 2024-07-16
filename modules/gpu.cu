@@ -130,10 +130,10 @@ __device__ void kernel_DoDrugSim(double *d_ic50, double *d_cvar, double d_conc, 
 	  // static const int CURRENT_SCALING = 1000;
 
     // printf("Core %d:\n",sample_id);
-    initConsts(d_CONSTANTS, d_STATES, type, conc, d_ic50, d_cvar, p_param->is_dutta, p_param->is_cvar, sample_id);
+    initConsts(d_CONSTANTS, d_STATES, type, conc, d_ic50, d_herg, d_cvar, p_param->is_dutta, p_param->is_cvar, bcl, epsilon, sample_id);
     
-
     applyDrugEffect(d_CONSTANTS, conc, d_ic50, epsilon, sample_id);
+
     d_CONSTANTS[BCL + (sample_id * num_of_constants)] = bcl;
 
     // generate file for time-series output
@@ -149,12 +149,7 @@ __device__ void kernel_DoDrugSim(double *d_ic50, double *d_cvar, double d_conc, 
     {
         computeRates(tcurr[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC, sample_id); 
         
-        dt_set = set_time_step( tcurr[sample_id], time_point, max_time_step, 
-        d_CONSTANTS, 
-        d_RATES, 
-        d_STATES, 
-        d_ALGEBRAIC, 
-        sample_id); 
+        dt_set = set_time_step( tcurr[sample_id], time_point, max_time_step, d_CONSTANTS, d_RATES, sample_id); 
         
         // printf("tcurr at core %d: %lf\n",sample_id,tcurr[sample_id]);
         if (floor((tcurr[sample_id] + dt_set) / bcl) == floor(tcurr[sample_id] / bcl)) { 
@@ -360,7 +355,7 @@ __device__ void kernel_DoDrugSim(double *d_ic50, double *d_cvar, double d_conc, 
 
 
 
-__global__ void kernel_DrugSimulation(double *d_ic50, double *d_cvar, double *d_conc, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, 
+__global__ void kernel_DrugSimulation(double *d_ic50, double *d_cvar, double *d_conc, double *d_herg, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, 
                                       double *d_STATES_RESULT, 
                                       // double *time, double *states, double *out_dt,  double *cai_result, 
                                       // double *ina, double *inal, 
@@ -381,7 +376,7 @@ __global__ void kernel_DrugSimulation(double *d_ic50, double *d_cvar, double *d_
     // cipa_t cipa_per_sample[2000];
     // printf("in\n");
     // printf("Calculating %d\n",thread_id);
-    kernel_DoDrugSim(d_ic50, d_cvar, d_conc[thread_id], d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
+    kernel_DoDrugSim(d_ic50, d_cvar, d_conc[thread_id], d_herg, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
                           d_STATES_RESULT, 
                           // time, states, out_dt, cai_result,
                           // ina, inal, 

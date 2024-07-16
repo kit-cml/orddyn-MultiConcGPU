@@ -20,6 +20,7 @@ struct param_t
   char hill_file[1024];
   char cvar_file[1024];
   char drug_name[100];
+  char herg_dir[100];
   char concs[100];
   float conc;
   void init();
